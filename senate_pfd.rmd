@@ -69,12 +69,12 @@ filings_table_url_list <- filings_table %>%
   #slice(1:90) %>%
   as_vector()
 
-# create empty dataframe to hold results
-senator_assets_all <- tibble()
+# For testing
+#report_url_value <- "https://sec.report/Senate-Stock-Disclosures/Toomey/Patrick+J/76ce1651-f934-4bef-91fb-402ef043d1dd"
 
-# for debugging
-report_url_value <- "https://sec.report/Senate-Stock-Disclosures/Romney/W+Mitt/580c4c34-031f-4dbc-89e3-52c84effb069"
-#report_url_value <- "https://sec.report/Senate-Stock-Disclosures/Cassidy/William/50e02aba-3d11-42d9-b0fd-153fd1b21a8c"
+# All senators table
+senators_all <- tibble()
+
 for (report_url_value in filings_table_url_list) {
   
   # Filter senator table for each senator's row
@@ -85,16 +85,54 @@ for (report_url_value in filings_table_url_list) {
   financial_tables <- report_url_value %>%
     read_html() %>%
     html_table()
+ 
+  # Print length of each list to get number of tables
+  number_of_tables <- length(financial_tables)
   
+  # create number of tables column
+  senator_table <- senator_table %>%
+    mutate(number_of_tables = number_of_tables)
+  
+  # Bind back 
+  senators_all <- senators_all %>%
+    bind_rows(senator_table)
+  #print(number_of_tables)
+}
+
+# create empty dataframe to hold results
+senator_assets_all <- tibble()
+senator_transactions_all <- tibble()
+senator_liabilities_all <- tibble()
+senator_positions_all <- tibble()
+senator_earned_income_all <- tibble()
+senator_agreements_all <- tibble()
+
+# for debugging
+#report_url_value <- "https://sec.report/Senate-Stock-Disclosures/Sullivan/Daniel+S/7567775a-9f88-42a7-b906-68a4449865a5"
+# Loop through and grab all finanical tables 
+for (report_url_value in filings_table_url_list) {
+  
+  # Filter senator table for each senator's row
+  senator_table <- filings_table %>%
+    filter(report_url == report_url_value)
+  
+  # print
+  print(senator_table$senator_full_name)
+  # Grab financial tables
+  financial_tables <- report_url_value %>%
+    read_html() %>%
+    html_table()
+ 
+  ####
   # Grab asset table
-  
+  ####
   assets_table <- tibble(
     data = financial_tables
   ) %>%
   filter(str_detect(data,"Asset Type")) %>%
   unnest() %>%
   clean_names() %>%
-  select(-v1)
+  mutate(across(everything(), as.character))
   
   # Bind asset table back to senator table
   senator_assets_table <- senator_table %>%
@@ -103,67 +141,116 @@ for (report_url_value in filings_table_url_list) {
   # Add senator_assets_table to master dataframe
   senator_assets_all <- senator_assets_all %>%
     bind_rows(senator_assets_table)
+  
+  ####
+  # Grab transactions table
+  ####
+  transactions_table <- tibble(
+    data = financial_tables
+  ) %>%
+  filter(str_detect(data,"Ticker")) %>%
+  unnest() %>%
+  clean_names() %>%
+  mutate(across(everything(), as.character))
+  
+  # Bind asset table back to senator table
+  senator_transactions_table <- senator_table %>%
+    bind_cols(transactions_table)
+  
+  # Add senator_assets_table to master dataframe
+  senator_transactions_all <- senator_transactions_all %>%
+    bind_rows(senator_transactions_table)
+  
+  ####
+  # Grab liabilities table
+  ####
+  liabilities_table <- tibble(
+    data = financial_tables
+  ) %>%
+  filter(str_detect(data,"Incurred")) %>%
+  unnest() %>%
+  clean_names() %>%
+  mutate(across(everything(), as.character))
+  
+  # Bind asset table back to senator table
+  senator_liabilities_table <- senator_table %>%
+    bind_cols(liabilities_table)
+  
+  # Add senator_assets_table to master dataframe
+  senator_liabilities_all <- senator_liabilities_all %>%
+    bind_rows(senator_liabilities_table)
+  
+  #####
+  # Grab positions table
+  ####
+  positions_table <- tibble(
+    data = financial_tables
+  ) %>%
+  filter(str_detect(data,"Position Dates")) %>%
+  unnest() %>%
+  clean_names() %>%
+  mutate(across(everything(), as.character))
+  
+  # Bind asset table back to senator table
+  senator_positions_table <- senator_table %>%
+    bind_cols(positions_table)
+  
+  # Add senator_assets_table to master dataframe
+  senator_positions_all <- senator_positions_all %>%
+    bind_rows(senator_positions_table)
+  
+  #####
+  # Grab earned income table
+  ####
+  earned_income_table <- tibble(
+    data = financial_tables
+  ) %>%
+  filter(str_detect(data,"Who Was Paid")) %>%
+  unnest() %>%
+  clean_names() %>%
+  mutate(across(everything(), as.character))
+  
+  # Bind asset table back to senator table
+  senator_earned_income_table <- senator_table %>%
+    bind_cols(earned_income_table)
+  
+  # Add senator_assets_table to master dataframe
+  senator_earned_income_all <- senator_earned_income_all %>%
+    bind_rows(senator_earned_income_table)
+  
+  #####
+  # Grab agreements table
+  ####
+  agreements_table <- tibble(
+    data = financial_tables
+  ) %>%
+  filter(str_detect(data,"Status and Terms")) %>%
+  unnest() %>%
+  clean_names() %>%
+  mutate(across(everything(), as.character))
+  
+  # Bind asset table back to senator table
+  senator_agreements_table <- senator_table %>%
+    bind_cols(agreements_table)
+  
+  # Add senator_assets_table to master dataframe
+  senator_agreements_all <- senator_agreements_all %>%
+    bind_rows(senator_agreements_table)
+  
+  
+  
 
 }
 
-write_rds(senator_assets_all,"senate_assets.rds")
+write_rds(senators_all,"data/senators_all.rds")
+write_rds(senator_assets_all,"data/senate_assets.rds")
+write_rds(senator_transactions_all,"data/senate_transactions.rds")
+write_rds(senator_liabilities_all,"data/senate_liabilities.rds")
+write_rds(senator_positions_all,"data/senate_positions.rds")
+write_rds(senator_earned_income_all,"data/senate_earned_income.rds")
+write_rds(senator_agreements_all,"data/senate_agreements.rds")
+
+rm(list=ls()[! ls() %in% c("senators_all","senator_assets_all","senator_transactions_all","senator_liabilities_all","senator_positions_all","senator_earned_income_all","senator_agreements_all")])
+
 
 ```
-
-```{r}
-x <- senator_assets_all %>%
-  group_by(asset_type) %>%
-  count() %>%
-  arrange(desc(n))
-
-businesses <- senator_assets_all %>%
-  filter(str_detect(asset_type,"Receivable|Business"))
-
-
-businesses
-```
-
-```{r}
-# For loop, iterating over each row in our naics industry dataframe
-for(row_number in 1:nrow(naics_industry)) {
-
-    # Keep only the row for a given row number, get rid of every other row
-    each_row_df <- naics_industry %>%
-      slice(row_number)
-
-    # Define url of page to get
-    url <- each_row_df$sector_url
-
-    # Define id of table to ingest
-    xpath_employment_table <- paste0('//*[@id="',each_row_df$sector_xpath_id,'"]')
-
-    # Get employment table from each page by going to each url defined above, reading in the html with read_html(), extracting the table with the id generated by the xpath code using html_elements), and then turning the html into a proper dataframe using html_table().  The dataframe is in a nested list, which we'll have to extract in the next step.
-    employment_info <- url %>%
-      read_html() %>%
-      html_elements(xpath = xpath_employment_table) %>%
-      html_table()
-
-    # Grab the dataframe out of the list (it's the first and only element inside the list); clean up the field names with clean_names(); use slice(2) to keep only the second row; use bind_cols() to append the sector code and name to this table; turn jun_2021 column into a proper number, and rename it.  Then select only three columns we need.
-    employment_info <- employment_info[[1]] %>%
-      clean_names() %>%
-      slice(2) %>%
-      bind_cols(each_row_df) %>%
-      mutate(jun_2021 = parse_number(jun_2021)) %>%
-      rename(jun_2021_employees = jun_2021) %>%
-      select(sector,description,jun_2021_employees)
-
-    # To help us see what's happening as we build this, we're going to print the thing we're creating.  
-    print(employment_info)
-
-
-}
-
-```
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
